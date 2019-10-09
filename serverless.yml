@@ -1,0 +1,66 @@
+service: hype
+
+plugins:
+  - serverless-dotenv-plugin
+  - serverless-offline-scheduler
+  - serverless-offline-sqs
+  - serverless-offline
+  - serverless-sequelize-migrations
+
+custom:
+  serverless-offline-sqs:
+    apiVersion: '2012-11-05'
+    endpoint: 'http://${env:SQS_HOST}:9324'
+    region: ${env:AWS_REGION}
+    accessKeyId: ${env:AWS_ACCESS_KEY_ID}
+    secretAccessKey: ${env:AWS_SECRET_ACCESS_KEY}
+
+resources:
+  Resources:
+    PopulateDaily:
+      Type: 'AWS::SQS::Queue'
+      Properties:
+        QueueName: 'PopulateDaily'
+        VisibilityTimeout: 30
+
+provider:
+  name: aws
+  runtime: nodejs10.x
+  profile: serverless-user
+  stage: ${env:STAGE}
+  region: ${env:AWS_REGION}
+  environment:
+    POSTGRES_DB: ${env:POSTGRES_DB}
+    POSTGRES_USER: ${env:POSTGRES_USER}
+    POSTGRES_PASSWORD: ${env:POSTGRES_PASSWORD}
+    DB_HOST: ${env:DB_HOST}
+    DB_PORT: ${env:DB_PORT}
+    DB_DIALECT: ${env:DB_DIALECT}
+    NODE_ENV: ${env:NODE_ENV}
+    ALPHA_KEY: ${env:ALPHA_KEY}
+    AWS_REGION: ${env:AWS_REGION}
+    AWS_ACCESS_KEY_ID: ${env:AWS_ACCESS_KEY_ID}
+    AWS_SECRET_ACCESS_KEY: ${env:AWS_SECRET_ACCESS_KEY}
+    SQS_HOST: ${env:SQS_HOST}
+  iamRoleStatements:
+    - Effect: 'Allow'
+      Action:
+        - 'sqs:SendMessage'
+      Resource: 'arn:aws:sqs:${self:provider.region}:*:PopulateDaily'
+
+functions:
+  hello:
+    handler: handler.hello
+    events:
+      - http:
+          method: get
+          path: hello
+  sqsHello:
+    handler: handler.sqsHello
+    events:
+      - sqs:
+          arn:
+            Fn::GetAtt:
+              - PopulateDaily
+              - Arn
+          batchSize: 1

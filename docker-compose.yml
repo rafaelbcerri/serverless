@@ -1,0 +1,44 @@
+version: '3.1'
+
+services:
+  db:
+    image: postgres
+    ports:
+      - "5432:5432"
+    env_file: .env.development
+    volumes:
+      - database:/var/lib/postgresql/data
+
+  sqs:
+    image: s12v/elasticmq:latest
+    ports:
+      - "9324:9324"
+
+  sqs-create:
+    image: infrastructureascode/aws-cli:latest
+    depends_on:
+      - sqs
+    entrypoint: sh
+    command: "./create-queues.sh"
+    env_file: .env.development
+    volumes:
+      - ./:/project
+      - ./create-queues.sh:/project/create-queues.sh
+
+  node:
+    build: .
+    image: app
+    depends_on:
+      - db
+      - sqs-create
+    ports:
+      - "3000:3000"
+    command: "npm start"
+    restart: on-failure
+    env_file: .env.development
+    volumes:
+      - ./:/app
+      - /app/node_modules
+
+volumes:
+  database:
