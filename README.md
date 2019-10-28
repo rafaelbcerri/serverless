@@ -50,7 +50,9 @@ OK - Arrumar dockers
 
 OK - Fazer setup de stocks
 
+OK - Criar fila para o setup ou usar uma para tudo?
 
+OK - Criar handler para cuidar dessa fila
 
 Fazer setup de STOCH
 

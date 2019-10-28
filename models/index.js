@@ -25,7 +25,9 @@ fs
   })
   .forEach(file => {
     const model = sequelize['import'](path.join(__dirname, file));
-    const modelName = model.name.charAt(0).toUpperCase() + model.name.slice(1);
+    const modelName = model.name.split("_")
+      .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+      .join("");
     Models[modelName] = model;
   });
 
@@ -43,7 +45,7 @@ module.exports = async () => {
     return Models;
   }
 
-  await sequelize.authenticate()
+  await sequelize.authenticate();
   connection.isConnected = true;
   console.log('Created a new connection');
   return Models;

@@ -1,10 +1,10 @@
 'use strict';
 
 const aws = require('aws-sdk');
-// const alpha = require('alphavantage')({ key: process.env.ALPHA_KEY });
 
 const connectToDatabase = require('../../models/');
 const stocksJson = require("./stocks.json");
+const { splitArrayIntoBatches } = require('../../helpers/');
 
 const sqs = new aws.SQS({
   apiVersion: '2012-11-05',
@@ -12,39 +12,42 @@ const sqs = new aws.SQS({
   endpoint: process.env.AWS_ENDPOINT_URL,
   sslEnabled: false
 });
-const queueUrl = `${process.env.AWS_ENDPOINT_URL}/queue/PopulateDaily`;
+
+const QUEUE_URL = `${process.env.AWS_ENDPOINT_URL}/queue/SetupQueue`;
 
 ;(async () => {
   console.log("Connecting to Database");
   const { Stocks } = await connectToDatabase();
 
   console.log("Creating stocks");
-  // const stocks = await Stocks.bulkCreate(stocksJson);  // to create stocks
-  const stocks = await Stocks.findAll(); // use this if stocks are already created
+  const stocksInDB = await Stocks.findAll();
+  const stocks = (stocksInDB.length === 0) ? await Stocks.bulkCreate(stocksJson) : stocksInDB;
   const stockMessages = stocks.map(({ id, symbol }) => ({ id, symbol }));
 
   console.log("Sending stocks to SQS");
-  sendMessageBatch(stockMessages, 0);
+
+  sendMessageBatch(stockMessages)
+    .then(console.log)
+    .catch(console.error);
 })();
 
+const sendMessageBatch = (messages) => {
+  let delay = 0;
+  const messagesBatch = splitArrayIntoBatches(messages, 7);
 
-function sendMessageBatch(messages, delay) {
-  if (!messages.length) { return []; }
-  const messagesToSend = messages.splice(0, 7);
-
-  const params = {
-    MessageBody: JSON.stringify(messagesToSend),
-    DelaySeconds: delay,
-    QueueUrl: queueUrl
-  };
-
-  sqs.sendMessage(params, function (err, data) {
-    if (err) {
-      console.log('error:', 'Fail Send Message' + err);
-    } else {
-      console.log('data:', data.MessageId);
-    }
-  });
-
-  return sendMessageBatch(messages, delay + 60);
+  return Promise.all(messagesBatch.map(function (batch) {
+    const message = createMessage(batch, delay);
+    delay += 60;
+    return sqs.sendMessage(message).promise();
+  }))
+    .then(results => results.reduce(
+      (memo, item) => memo.concat(item),
+      [],
+    ));
 }
+
+const createMessage = (body, delay) => ({
+  MessageBody: JSON.stringify(body),
+  DelaySeconds: delay,
+  QueueUrl: QUEUE_URL
+});

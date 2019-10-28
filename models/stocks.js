@@ -18,8 +18,8 @@ module.exports = (sequelize, type) => {
   }, {});
 
   Stocks.associate = function (models) {
-    // Stocks.hasMany(models.Dailies)
-    // Stocks.hasMany(models.DailyMetrics)
+    Stocks.hasMany(models.Dailies)
+    Stocks.hasMany(models.DailyIndicators)
   };
 
   return Stocks;

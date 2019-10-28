@@ -17,11 +17,16 @@ custom:
 
 resources:
   Resources:
-    PopulateDaily:
+    DailyPopulateQueue:
       Type: 'AWS::SQS::Queue'
       Properties:
-        QueueName: 'PopulateDaily'
-        VisibilityTimeout: 30
+        QueueName: 'DailyPopulateQueue'
+        VisibilityTimeout: 60
+    SetupQueue:
+      Type: 'AWS::SQS::Queue'
+      Properties:
+        QueueName: 'SetupQueue'
+        VisibilityTimeout: 60
 
 provider:
   name: aws
@@ -33,6 +38,9 @@ provider:
     POSTGRES_DB: ${env:POSTGRES_DB}
     POSTGRES_USER: ${env:POSTGRES_USER}
     POSTGRES_PASSWORD: ${env:POSTGRES_PASSWORD}
+    DB_NAME: ${env:POSTGRES_DB}
+    DB_USERNAME: ${env:POSTGRES_USER}
+    DB_PASSWORD: ${env:POSTGRES_PASSWORD}
     DB_HOST: ${env:DB_HOST}
     DB_PORT: ${env:DB_PORT}
     DB_DIALECT: ${env:DB_DIALECT}
@@ -46,21 +54,34 @@ provider:
     - Effect: 'Allow'
       Action:
         - 'sqs:SendMessage'
-      Resource: 'arn:aws:sqs:${self:provider.region}:*:PopulateDaily'
+      Resource: 'arn:aws:sqs:${self:provider.region}:*:DailyPopulateQueue'
+    - Effect: 'Allow'
+      Action:
+        - 'sqs:SendMessage'
+      Resource: 'arn:aws:sqs:${self:provider.region}:*:SetupQueue'
+
 
 functions:
-  hello:
-    handler: handler.hello
+  todayExplore:
+    description: Explore all stocks for today
+    handler: functions/api/index.todayExplore
     events:
       - http:
+          path: /explore
           method: get
-          path: hello
-  sqsHello:
-    handler: handler.sqsHello
+          cors: true
+  dailyPopulate:
+    description: Function to populate daily data
+    handler: functions/cron/index.dailyPopulate
+    events:
+      - schedule: cron(5 16 * * ? *)
+      # - schedule: cron(0 22 ? * MON-FRI *)
+  setupHandler:
+    handler: functions/queue/index.setupHandler
     events:
       - sqs:
           arn:
             Fn::GetAtt:
-              - PopulateDaily
+              - SetupQueue
               - Arn
           batchSize: 1

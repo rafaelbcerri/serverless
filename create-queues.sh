@@ -3,7 +3,7 @@ trap "exit 1" INT
 
 AWS_ENDPOINT_URL=${AWS_ENDPOINT_URL:-http://localhost:9324}
 
-QUEUES="PopulateDaily";
+QUEUES="SetupQueue DailyPopulateQueue";
 for QUEUE_NAME in $QUEUES
 do
     until aws sqs --endpoint-url ${AWS_ENDPOINT_URL} get-queue-url --queue-name ${QUEUE_NAME}  > /dev/null 2> /dev/null
