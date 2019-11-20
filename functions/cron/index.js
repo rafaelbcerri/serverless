@@ -25,19 +25,10 @@ const dailyPopulate = async (event, context, callback) => {
     group: ['stocks.id'],
   });
 
-
-  // Antes de enviar na verdade eu tenho que er o ultimo dia de cada indicador
-
-  // sendMessageBatch(stocks)
-  //   .then(console.log)
-  //   .catch(console.error);
-
-  // const lastDay = new Date(daily.date.replace('-', '/'))
- console.log("oioi")
+  sendMessageBatch(stocks)
+    .then(console.log)
+    .catch(console.error);
 };
-
-
-dailyPopulate()
 
 const sendMessageBatch = (messages) => {
   let delay = 0;
@@ -59,8 +50,6 @@ const createMessage = (body, delay) => ({
   DelaySeconds: delay,
   QueueUrl: QUEUE_URL
 });
-
-
 
 module.exports = {
   dailyPopulate

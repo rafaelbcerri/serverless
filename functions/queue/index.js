@@ -49,9 +49,56 @@ module.exports.setupHandler = async ({ Records }, context, callback) => {
 };
 
 
-function filterStockData(stock, id) {
+module.exports.dailyPopulateHandler = async ({ Records }, context, callback) => {
+  const { Dailies, DailyIndicators } = await connectToDatabase();
+  const { body } = Records[0];
+  const stocks = JSON.parse(body);
+
+  // ver as ações que devem ser criadas
+  Promise.all(
+    stocks.map(({ id, symbol, date }) =>
+      alpha.data.daily(`${symbol}.SA`, "compact")
+        .then(data => filterStockData(data, id, date)),
+    )
+  )
+    .then(_.flattenDeep)
+    .then(console.log)
+    // .then(function (data) { Dailies.bulkCreate(data) });
+
+  // const stochFields = { "slowK": "SlowK", "slowD": "SlowD" };
+  // const rsiFields = { "rsi": "RSI" };
+  // const adxFields = { "adx": "ADX" };
+
+  // Promise.all(
+  //   stocks.map(({ symbol, id }) =>
+  //     Promise.all([
+  //       alpha.technical.stoch(`${symbol}.SA`, "daily")
+  //         .then(data => filterIndicator(data, id, "STOCH", stochFields)),
+  //       alpha.technical.rsi(`${symbol}.SA`, "daily", "14", "open")
+  //         .then(data => filterIndicator(data, id, "RSI", rsiFields)),
+  //       alpha.technical.adx(`${symbol}.SA`, "daily", "14")
+  //         .then(data => filterIndicator(data, id, "ADX", adxFields))
+  //     ])
+  //       .then(_.flattenDeep)
+  //       .then(data => {
+  //         const dataByDate = _.groupBy(data, 'date')
+  //         return Object.keys(dataByDate).map(date =>
+  //           Object.assign({}, ...dataByDate[date])
+  //         );
+  //       })
+  //   )
+  // )
+  //   .then(_.flattenDeep)
+  //   .then(function (data) { DailyIndicators.bulkCreate(data) });
+
+
+  context.done(null, 'Terminado');
+};
+
+
+function filterStockData(stock, id, filterDate) {
   return Object.keys(stock["Time Series (Daily)"])
-    .filter(date => new Date(date.replace('-', '/')) > new Date(FILTER_DATE))
+    .filter(date => new Date(date.replace('-', '/')) > new Date(filterDate))
     .map(date => ({
       stockId: id,
       date: new Date(date.replace('-', '/')),

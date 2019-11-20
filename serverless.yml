@@ -76,6 +76,15 @@ functions:
     events:
       - schedule: cron(5 16 * * ? *)
       # - schedule: cron(0 22 ? * MON-FRI *)
+  dailyPopulateHandler:
+    handler: functions/queue/index.dailyPopulateHandler
+    events:
+      - sqs:
+          arn:
+            Fn::GetAtt:
+              - DailyPopulateQueue
+              - Arn
+          batchSize: 1
   setupHandler:
     handler: functions/queue/index.setupHandler
     events:
