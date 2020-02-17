@@ -62,19 +62,35 @@ provider:
 
 
 functions:
+  getStocks:
+    description: Get all stocks name
+    handler: functions/api/index.getStocks
+    events:
+      - http:
+          path: /stocks
+          method: get
+          cors: true
+  getStock:
+    description: Get all stock data
+    handler: functions/api/index.getStock
+    events:
+      - http:
+          path: /stocks/{id}
+          method: get
+          cors: true
   todayExplore:
     description: Explore all stocks for today
     handler: functions/api/index.todayExplore
     events:
       - http:
-          path: /explore
+          path: /today
           method: get
           cors: true
   dailyPopulate:
     description: Function to populate daily data
     handler: functions/cron/index.dailyPopulate
     events:
-      - schedule: cron(5 16 * * ? *)
+      - schedule: cron(20 19 * * ? *)
       # - schedule: cron(0 22 ? * MON-FRI *)
   dailyPopulateHandler:
     handler: functions/queue/index.dailyPopulateHandler

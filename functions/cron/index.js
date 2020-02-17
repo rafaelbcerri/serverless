@@ -2,16 +2,7 @@
 
 const sequelize = require('sequelize');
 const connectToDatabase = require('../../models');
-const { buildResponse, splitArrayIntoBatches } = require('../../helpers');
-
-const sqs = new aws.SQS({
-  apiVersion: '2012-11-05',
-  region: process.env.AWS_REGION,
-  endpoint: process.env.AWS_ENDPOINT_URL,
-  sslEnabled: false
-});
-
-const QUEUE_URL = `${process.env.AWS_ENDPOINT_URL}/queue/DailyPopulateQueue`;
+const { sendMessageBatch } = require('../../helpers');
 
 const dailyPopulate = async (event, context, callback) => {
   const { Dailies, Stocks } = await connectToDatabase();
@@ -25,31 +16,15 @@ const dailyPopulate = async (event, context, callback) => {
     group: ['stocks.id'],
   });
 
-  sendMessageBatch(stocks)
+  const queueUrl = `${process.env.AWS_ENDPOINT_URL}/queue/DailyPopulateQueue`;
+
+  // sendMessageBatch(stocks, QUEUE_URL, 7, 60)
+  // 15, 28, 37
+  sendMessageBatch(stocks.slice(28), queueUrl, 1)
     .then(console.log)
+    .then(() => context.done(null, 'Terminado'))
     .catch(console.error);
 };
-
-const sendMessageBatch = (messages) => {
-  let delay = 0;
-  const messagesBatch = splitArrayIntoBatches(messages, 7);
-
-  return Promise.all(messagesBatch.map(function (batch) {
-    const message = createMessage(batch, delay);
-    delay += 60;
-    return sqs.sendMessage(message).promise();
-  }))
-    .then(results => results.reduce(
-      (memo, item) => memo.concat(item),
-      [],
-    ));
-}
-
-const createMessage = (body, delay) => ({
-  MessageBody: JSON.stringify(body),
-  DelaySeconds: delay,
-  QueueUrl: QUEUE_URL
-});
 
 module.exports = {
   dailyPopulate

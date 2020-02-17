@@ -1,4 +1,15 @@
+
+
 # Commands
+
+## Setup
+
+```sh
+$ docker-compose build
+$ docker-compose up
+$ docker-compose run node sls migrations up
+$ docker-compose run node node scripts/setup/
+```
 
 ## Active debugger
 
@@ -65,5 +76,29 @@ Fazer setup de ADX
 ..
 
 
+// Ver como fazer o cron rodar e deixar escrito
+
 
 Arrumar estrutura de pastas
+
+
+
+  <!-- const rawData = await Dailies.findAll({
+    include: [
+      {
+        model: Stocks, as: 'stocks',
+        attributes: ["id", "symbol"],
+        include: [
+          {
+            model: DailyIndicators, as: 'daily_indicators',
+            on: {
+              'stockId': { [sequelize.Op.eq]: sequelize.col('stocks.id') },
+              'date': { [sequelize.Op.eq]: sequelize.col('dailies.date') },
+            },
+            attributes: ["rsi", "slowD", "slowK", "adx"]
+          }
+        ]
+      },
+    ],
+    where: { stockId: 1}
+  }); -->

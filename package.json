@@ -4,7 +4,7 @@
   "description": "",
   "main": "handler.js",
   "scripts": {
-    "start": "serverless offline start --port 3000 --host 0.0.0.0",
+    "start": "serverless offline start --port 3000 --host 0.0.0.0 --noTimeout",
     "production": "NODE_ENV=production severless deploy"
   },
   "dependencies": {

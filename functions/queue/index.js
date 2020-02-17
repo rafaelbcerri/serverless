@@ -2,7 +2,7 @@ const alpha = require('alphavantage')({ key: process.env.ALPHA_KEY });
 const _ = require('lodash');
 const connectToDatabase = require('../../models/');
 
-const FILTER_DATE = "2014/12/31";
+const INITIAL_DATE = "2014/12/31";
 
 module.exports.setupHandler = async ({ Records }, context, callback) => {
   const { Dailies, DailyIndicators } = await connectToDatabase();
@@ -12,7 +12,7 @@ module.exports.setupHandler = async ({ Records }, context, callback) => {
   Promise.all(
     stocks.map(({symbol, id}) =>
       alpha.data.daily(`${symbol}.SA`, "full")
-        .then(data => filterStockData(data, id)),
+        .then(data => filterStockData(data, id, INITIAL_DATE)),
     )
   )
     .then(_.flattenDeep)
@@ -26,11 +26,11 @@ module.exports.setupHandler = async ({ Records }, context, callback) => {
     stocks.map(({ symbol, id }) =>
       Promise.all([
         alpha.technical.stoch(`${symbol}.SA`, "daily")
-          .then(data => filterIndicator(data, id, "STOCH", stochFields)),
+          .then(data => filterIndicator(data, id, "STOCH", stochFields, INITIAL_DATE)),
         alpha.technical.rsi(`${symbol}.SA`, "daily", "14", "open")
-          .then(data => filterIndicator(data, id, "RSI", rsiFields)),
+          .then(data => filterIndicator(data, id, "RSI", rsiFields, INITIAL_DATE)),
         alpha.technical.adx(`${symbol}.SA`, "daily", "14")
-          .then(data => filterIndicator(data, id, "ADX", adxFields))
+          .then(data => filterIndicator(data, id, "ADX", adxFields, INITIAL_DATE))
       ])
       .then(_.flattenDeep)
       .then(data => {
@@ -54,7 +54,8 @@ module.exports.dailyPopulateHandler = async ({ Records }, context, callback) => 
   const { body } = Records[0];
   const stocks = JSON.parse(body);
 
-  // ver as ações que devem ser criadas
+  console.log(stocks)
+
   Promise.all(
     stocks.map(({ id, symbol, date }) =>
       alpha.data.daily(`${symbol}.SA`, "compact")
@@ -62,34 +63,33 @@ module.exports.dailyPopulateHandler = async ({ Records }, context, callback) => 
     )
   )
     .then(_.flattenDeep)
-    .then(console.log)
-    // .then(function (data) { Dailies.bulkCreate(data) });
+    .then(function (data) { Dailies.bulkCreate(data) });
 
-  // const stochFields = { "slowK": "SlowK", "slowD": "SlowD" };
-  // const rsiFields = { "rsi": "RSI" };
-  // const adxFields = { "adx": "ADX" };
+  const stochFields = { "slowK": "SlowK", "slowD": "SlowD" };
+  const rsiFields = { "rsi": "RSI" };
+  const adxFields = { "adx": "ADX" };
 
-  // Promise.all(
-  //   stocks.map(({ symbol, id }) =>
-  //     Promise.all([
-  //       alpha.technical.stoch(`${symbol}.SA`, "daily")
-  //         .then(data => filterIndicator(data, id, "STOCH", stochFields)),
-  //       alpha.technical.rsi(`${symbol}.SA`, "daily", "14", "open")
-  //         .then(data => filterIndicator(data, id, "RSI", rsiFields)),
-  //       alpha.technical.adx(`${symbol}.SA`, "daily", "14")
-  //         .then(data => filterIndicator(data, id, "ADX", adxFields))
-  //     ])
-  //       .then(_.flattenDeep)
-  //       .then(data => {
-  //         const dataByDate = _.groupBy(data, 'date')
-  //         return Object.keys(dataByDate).map(date =>
-  //           Object.assign({}, ...dataByDate[date])
-  //         );
-  //       })
-  //   )
-  // )
-  //   .then(_.flattenDeep)
-  //   .then(function (data) { DailyIndicators.bulkCreate(data) });
+  Promise.all(
+    stocks.map(({ symbol, id, date }) =>
+      Promise.all([
+        alpha.technical.stoch(`${symbol}.SA`, "daily")
+          .then(data => filterIndicator(data, id, "STOCH", stochFields, date)),
+        alpha.technical.rsi(`${symbol}.SA`, "daily", "14", "open")
+          .then(data => filterIndicator(data, id, "RSI", rsiFields, date)),
+        alpha.technical.adx(`${symbol}.SA`, "daily", "14")
+          .then(data => filterIndicator(data, id, "ADX", adxFields, date))
+      ])
+        .then(_.flattenDeep)
+        .then(data => {
+          const dataByDate = _.groupBy(data, 'date')
+          return Object.keys(dataByDate).map(date =>
+            Object.assign({}, ...dataByDate[date])
+          );
+        })
+    )
+  )
+    .then(_.flattenDeep)
+    .then(function (data) { DailyIndicators.bulkCreate(data) });
 
 
   context.done(null, 'Terminado');
@@ -109,9 +109,9 @@ function filterStockData(stock, id, filterDate) {
       volume: stock["Time Series (Daily)"][date]["5. volume"]
     }));
 }
-function filterIndicator(data, id, indicator, indicatorFields) {
+function filterIndicator(data, id, indicator, indicatorFields, filterDate) {
   return Object.keys(data[`Technical Analysis: ${indicator}`])
-    .filter(date => new Date(date.replace('-', '/')) > new Date(FILTER_DATE))
+    .filter(date => new Date(date.replace('-', '/')) > new Date(filterDate))
     .map(date => {
       const result = {
         stockId: id,
